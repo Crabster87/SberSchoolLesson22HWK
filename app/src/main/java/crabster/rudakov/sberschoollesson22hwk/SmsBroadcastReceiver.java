@@ -9,6 +9,8 @@ import android.util.Log;
 import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SmsBroadcastReceiver extends BroadcastReceiver {
 
@@ -32,7 +34,7 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
             if (listener != null)
                 try {
                     listener.onReceivedCode(extractCode(smsBody));
-                } catch (IndexOutOfBoundsException e) {
+                } catch (IllegalStateException e) {
                     listener.onReceivedCode(context.getString(R.string.code_text_view));
                     Toast.makeText(context, "Неверный формат сообщения!", Toast.LENGTH_SHORT).show();
                 }
@@ -47,20 +49,23 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
     private String getSmsBody(Intent intent) {
         SmsMessage[] messageChunks = Telephony.Sms.Intents.getMessagesFromIntent(intent);
         StringBuilder smsBody = new StringBuilder();
-        for (SmsMessage x: messageChunks) {
+        for (SmsMessage x : messageChunks) {
             smsBody.append(x.getMessageBody());
         }
         return smsBody.toString();
     }
 
     /**
-     * Метод извлекает код из тела полученного СМС-сообщения определённого формата,
-     * выбрасывая исключение в случае, если какой-либо из индексов равен -1
+     * Метод извлекает код(последовательность цифр любой длины отличной от 0)
+     * из тела полученного СМС-сообщения, выбрасывая исключение в случае
+     * отсутствия совпадений
      */
-    private String extractCode(String smsBody) throws IndexOutOfBoundsException {
-        int firstDigitIndex = smsBody.indexOf(":") + 2;
-        int endPointIndex = smsBody.indexOf(".", firstDigitIndex);
-        return smsBody.subSequence(firstDigitIndex, endPointIndex).toString();
+    private String extractCode(String smsBody) {
+        Pattern pattern = Pattern.compile("\\d+");
+        Matcher matcher = pattern.matcher(smsBody);
+        if (matcher.find())
+            return matcher.group();
+        else throw new IllegalStateException();
     }
 
 }
